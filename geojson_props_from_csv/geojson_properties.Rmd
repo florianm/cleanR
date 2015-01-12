@@ -75,6 +75,9 @@ m
 The CSV and the GeoJSON can now be saved and re-uploaded. If the original names 
 are retained, the URLs used in this example will remain unchanged.
 ```{r}
-write.csv(csv, file='Jurieninvertebratesurveysitelist.csv', row.names=F)
-write(toJSON(gj), file='Jurienaquaticinvertebratesurveysites.json')
+write.csv(csv, file='tmp/Jurieninvertebratesurveysitelist.csv', row.names=F)
+write(toJSON(gj), file='tmp/Jurienaquaticinvertebratesurveysites.json')
 ```
+
+## Version control
+This RMarkdown workbook is maintained at [github](https://github.com/florianm/cleanR).
