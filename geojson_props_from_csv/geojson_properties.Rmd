@@ -1,0 +1,80 @@
+---
+title: "Set GeoJSON properties from CSV attributes"
+author: "Florian Mayer"
+date: "12/01/2015"
+output: html_document
+---
+```{r, echo=FALSE}
+# devtools::install_github("rstudio/leaflet")
+library(leaflet)
+library(rjson)
+```
+
+## Data
+Consider a GeoJSON file of sites with a site name, and a CSV file of site 
+attributes.
+
+The GeoJSON corresponds to an ESRI Shapefile with only names, 
+but no other attributes set.
+The CSV file corresponds to the attribute table of the Shapefile.
+
+```{r}
+dataset_url <- paste0("http://internal-data.dpaw.wa.gov.au/dataset/",
+                      "0ca68dd5-57b1-4332-beae-ae0a5b9ed762/")
+
+csv_url <- paste0(dataset_url,
+                  "resource/46b6b5d6-e476-4876-93e4-3c5215ed5a6e/",
+                  "download/Jurieninvertebratesurveysitelist.csv")
+csv <- read.csv(csv_url, header=T, stringsAsFactor=F, 
+                col.names=c("name", "description", "wetland_style", 
+                            "sampled_on", "Latitude", "Longitude"))
+
+gj_url <- paste0(dataset_url,
+                 "resource/6d13c10b-fb88-433a-9133-84061351079c/",
+                 "download/Jurienaquaticinvertebratesurveysites.json")
+gj <- fromJSON(file=gj_url)
+```
+The csv is now loaded as `data.frame`, while the GeoJSON is a nested `list`.
+
+## Process
+In a loop over `gj$features$properties`, new and existing properties can be set 
+from the csv file where names match.
+```{r}
+for (i in 1:length(gj$features)){
+  n <- gj$features[[i]]$properties$Name
+  textdata <- csv[which(csv$name==n),]
+  gj$features[[i]]$properties$description <- textdata$description
+  gj$features[[i]]$properties$wetland_style <- textdata$wetland_style
+  gj$features[[i]]$properties$sampled_on <- textdata$sampled_on
+  gj$features[[i]]$properties$popup <-  paste0(
+      "<h3>", textdata$name, "</h3>",
+      "<p>", textdata$description, "</p>",
+      "<p><strong>Wetland  style</strong> ", textdata$wetland_style, "</p>",
+      "<p><strong>Sampled on</strong> ", textdata$sampled_on, "</p>")
+}
+```
+
+## Result
+The resulting, modified GeoJSON object now contains attributes from the csv file,
+as shown in this map. The property `popup` contains the HTML of the popups.
+```{r}
+m = leaflet() %>% 
+  addTiles(
+    paste0('http://server.arcgisonline.com/ArcGIS/rest/services/',
+            'World_Topo_Map/MapServer/tile/{z}/{y}/{x}'),
+    attribution = paste('Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ,',
+                        'TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase,',
+                        ' Kadaster NL, Ordnance Survey, Esri Japan, METI,',
+                        'Esri China (Hong Kong), and the GIS User Community')) %>%
+  setView(120, -25, zoom = 5) %>%
+  addGeoJSON(gj, layerId="gj")
+m
+```
+
+## Output
+The CSV and the GeoJSON can now be saved and re-uploaded. If the original names 
+are retained, the URLs used in this example will remain unchanged.
+```{r}
+write.csv(csv, file='Jurieninvertebratesurveysitelist.csv', row.names=F)
+write(toJSON(gj), file='Jurienaquaticinvertebratesurveysites.json')
+```
